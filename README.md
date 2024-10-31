@@ -1,3 +1,14 @@
+### URL
+https://ss-soku-response.vercel.app/
+
+### システムドキュメント
+https://japan-marketing-co-jp.gitbook.io/ssresushisutemudokyumento
+
+
+
+---
+
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
