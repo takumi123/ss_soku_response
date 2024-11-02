@@ -1,0 +1,187 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+}
+
+
+// ユーザーモデル
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique
+  password      String    @map("password_hash")
+  name          String?   @db.VarChar(100)
+  role          UserRole  @default(USER)
+  companyId     String?   @map("company_id") @db.Uuid
+  departmentId  String?   @map("department_id") @db.Uuid
+  chatworkId    String?   @unique @map("chatwork_id") @db.VarChar(100)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  company       Company?     @relation(fields: [companyId], references: [id])
+  department    Department?  @relation(fields: [departmentId], references: [id])
+  messages      Message[]    @relation("SenderMessages")
+  responses     Response[]   @relation("ResponderResponses")
+  reminds       Remind[]
+  userSettings  UserSettings?
+
+  @@map("users")
+}
+
+// 会社モデル
+model Company {
+  id                String   @id @default(uuid()) @db.Uuid
+  name              String   @db.VarChar(100)
+  businessHoursStart DateTime @map("business_hours_start") @db.Time
+  businessHoursEnd   DateTime @map("business_hours_end") @db.Time
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  users       User[]
+  departments Department[]
+  rooms       Room[]
+
+  @@map("companies")
+}
+
+// 部署モデル
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  company    Company    @relation(fields: [companyId], references: [id])
+  users      User[]
+  chatworkSettings DepartmentChatworkSettings?
+
+  @@map("departments")
+}
+
+// メッセージモデル
+model Message {
+  id                String   @id @default(uuid()) @db.Uuid
+  chatworkMessageId String   @unique @map("chatwork_message_id") @db.VarChar(100)
+  roomId           String   @map("room_id") @db.Uuid
+  senderId         String   @map("sender_id") @db.Uuid
+  content          String   @db.Text
+  toUsers          String[] @map("to_users") @db.Uuid
+  reUsers          String[] @map("re_users") @db.Uuid
+  urgencyLevel     Int      @map("urgency_level")
+  importanceLevel  Int      @map("importance_level")
+  remindInterval   Int      @map("remind_interval")
+  createdAt        DateTime @default(now()) @map("created_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  room      Room       @relation(fields: [roomId], references: [id])
+  sender    User       @relation("SenderMessages", fields: [senderId], references: [id])
+  responses Response[]
+  reminds   Remind[]
+
+  @@map("messages")
+}
+
+// ルームモデル
+model Room {
+  id              String   @id @default(uuid()) @db.Uuid
+  chatworkRoomId  String   @unique @map("chatwork_room_id") @db.VarChar(100)
+  companyId       String   @map("company_id") @db.Uuid
+  name            String   @db.VarChar(100)
+  isEnabled       Boolean  @default(true) @map("is_enabled")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  messages  Message[]
+
+  @@map("rooms")
+}
+
+// レスポンスモデル
+model Response {
+  id           String   @id @default(uuid()) @db.Uuid
+  messageId    String   @map("message_id") @db.Uuid
+  responderId  String   @map("responder_id") @db.Uuid
+  responseTime Int      @map("response_time")
+  isWithinTime Boolean  @map("is_within_time")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  message   Message @relation(fields: [messageId], references: [id])
+  responder User    @relation("ResponderResponses", fields: [responderId], references: [id])
+
+  @@map("responses")
+}
+
+// リマインドモデル
+model Remind {
+  id          String       @id @default(uuid()) @db.Uuid
+  messageId   String       @map("message_id") @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  status      RemindStatus
+  scheduledAt DateTime     @map("scheduled_at")
+  sentAt      DateTime?    @map("sent_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("reminds")
+}
+
+// ユーザー設定モデル
+model UserSettings {
+  id                    String    @id @default(uuid()) @db.Uuid
+  userId                String    @unique @map("user_id") @db.Uuid
+  defaultRemindInterval Int       @map("default_remind_interval")
+  notificationEnabled   Boolean   @default(true) @map("notification_enabled")
+  absenceStart         DateTime?  @map("absence_start")
+  absenceEnd           DateTime?  @map("absence_end")
+  createdAt            DateTime   @default(now()) @map("created_at")
+  updatedAt            DateTime   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_settings")
+}
+
+// 部署ChatWork設定モデル
+model DepartmentChatworkSettings {
+  id               String   @id @default(uuid()) @db.Uuid
+  departmentId     String   @unique @map("department_id") @db.Uuid
+  chatworkApiToken String   @map("chatwork_api_token") @db.VarChar(255)
+  botName          String   @map("bot_name") @db.VarChar(100)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  department Department @relation(fields: [departmentId], references: [id])
+
+  @@map("department_chatwork_settings")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  COMPANY_ADMIN
+}
+
+enum RemindStatus {
+  PENDING
+  SENT
+  CANCELLED
+}

@@ -35,9 +35,13 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.message || '登録に失敗しました');
+        console.error('登録エラー:', data);
+        setError(data.error || '登録に失敗しました');
         return;
       }
+
+      const responseData = await res.json();
+      console.log('登録成功:', responseData);
 
       // 登録成功後、自動的にログイン
       const result = await signIn('credentials', {
@@ -47,12 +51,15 @@ export default function RegisterPage() {
       });
 
       if (result?.error) {
+        console.error('ログインエラー:', result.error);
         setError('ログインに失敗しました');
         return;
       }
 
+      console.log('ログイン成功:', result);
       router.push('/users/dashboard');
-    } catch {
+    } catch (error) {
+      console.error('予期せぬエラー:', error);
       setError('登録処理中にエラーが発生しました');
     }
   };
